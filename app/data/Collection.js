@@ -52,6 +52,15 @@ class CollectionData {
     };
     iteration();
     self.collection.sort((itemA, itemB) => itemA.lvl - itemB.lvl);
+
+    self.collection.forEach((item, index, arrItem) => {
+      if (arrItem[index - 1] &&
+        arrItem[index - 1].lvl === item.lvl) {
+        item.group = arrItem[index - 1].group + 1;
+      } else {
+        item.group = 0;
+      }
+    });
   }
 
   constructor() {

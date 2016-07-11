@@ -7,7 +7,7 @@ class ModelItem {
   constructor(data) {
     this.Id = data.Id;
     this.Subject = data.Subject;
-    this.Gruppe = data.MasterWorksheet;
+    this.MasterWorksheet = data.MasterWorksheet;
     this.Dependency = [
       data.DependentOnWorksheetId2,
       data.DependentOnWorksheetId,
