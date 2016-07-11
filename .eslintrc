@@ -1,0 +1,27 @@
+{
+    "extends": "eslint",
+
+    "env": {
+      "browser": true,
+      "es6": true,
+      "node": true
+    },
+
+    "parserOptions": {
+       "ecmaVersion": 6,
+       "sourceType": "module",
+       "ecmaFeatures": {
+           "jsx": true
+       }
+   },
+
+    "rules": {
+      "func-style": ["error", "declaration", { "allowArrowFunctions": true }],
+      "comma-dangle": [2, "always-multiline"],
+      "curly": 0,
+      "no-new": 0,
+      "space-before-function-paren": [2, {"anonymous": "always", "named": "never"}],
+      "strict": [2, "never"],
+      "indent": ["error", 2]
+    }
+}
