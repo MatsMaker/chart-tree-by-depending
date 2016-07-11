@@ -6,10 +6,10 @@ const Model = Backbone.Model.extend({
       top: 35,
       right: 35,
       bottom: 35,
-      left: 35,
+      left: 45,
     },
-    width: 500,
-    height: 800,
+    width: 700,
+    height: 1000,
   },
 });
 

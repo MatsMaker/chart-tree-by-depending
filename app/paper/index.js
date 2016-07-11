@@ -125,19 +125,27 @@ const Paper = class {
     // find collection depends
     let collectionDepends = [];
     self.data.collection.forEach((item) => {
-      item.Dependency.forEach((depend) => {
+      item.Dependency.forEach((depend, index, arrDepend) => {
         if (depend !== -1) {
           let fromNode = self.data.collection.find((node) => node.Id === depend);
           collectionDepends.push({
             from: {
               id: depend,
               lvl: fromNode.lvl,
+              part: index,
+              numberDepends: arrDepend.length,
               group: fromNode.group,
+              width: fromNode.width,
+              height: fromNode.height,
             },
             to: {
+              part: index,
               id: item.Id,
               lvl: item.lvl,
+              numberDepends: arrDepend.length,
               group: item.group,
+              width: item.width,
+              height: item.height,
             },
           });
         }
@@ -153,10 +161,43 @@ const Paper = class {
       self.svg.append("g")
       .attr("class", "group-depends");
 
-    let points = (line) =>
-      (self.scale.x(line.from.group) + self.model.get("padding").left + 50) + "," + (self.scale.y(line.from.lvl) + 50) +
-      " " +
-      (self.scale.x(line.to.group) + self.model.get("padding").left + 50) + "," + self.scale.y(line.to.lvl);
+    let points = (line) => {
+      const margin = 5;
+
+      const xStart = (self.scale.x(line.from.group) + self.model.get("padding").left + (line.from.width / (line.to.numberDepends + 1) * (line.to.numberDepends - line.from.part)));
+      const xEnd = (self.scale.x(line.to.group) + self.model.get("padding").left + (line.to.width / (line.to.numberDepends + 1) * (line.to.numberDepends - line.from.part)));
+
+      const pStart = [
+        xStart,
+        (self.scale.y(line.from.lvl) + line.from.height),
+      ];
+      const p1 = [
+        xStart,
+        (self.scale.y(line.from.lvl) + line.from.height + margin),
+      ];
+
+      const p2 = [
+        xEnd,
+        (self.scale.y(line.to.lvl) - margin),
+      ];
+
+      const pEnd = [
+        xEnd,
+        self.scale.y(line.to.lvl),
+      ];
+
+      if (line.from.lvl + 1 === line.to.lvl) {
+        return [pStart, p1, p2, pEnd];
+      } else {
+        const lineRightOrLeft = (((line.to.numberDepends - line.to.part) >= (line.to.numberDepends / 2)) ? 1 : -1);
+        const move = line.to.width / 2 * lineRightOrLeft;
+        return [
+          pStart, p1, [p1[0] + move, p1[1] + margin],
+          [p2[0] + move, p2[1] - margin],
+          p2, pEnd,
+        ];
+      }
+    };
 
     self.items.depends.selectAll(".polyline")
       .data(collectionDepends)
@@ -165,7 +206,9 @@ const Paper = class {
       // .apend("path")
       .attr("class", "depend")
       .attr("from-to", (line) => line.from.id + "-" + line.to.id)
-      .attr("points", points)
+      .attr("points", (line) => {
+        return points(line).join(" ");
+      })
       .call(depends);
 
     return self;
