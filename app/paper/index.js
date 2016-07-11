@@ -122,16 +122,51 @@ const Paper = class {
   depends() {
     let self = this;
 
-    let depends = d3.line();
+    // find collection depends
+    let collectionDepends = [];
+    self.data.collection.forEach((item) => {
+      item.Dependency.forEach((depend) => {
+        if (depend !== -1) {
+          let fromNode = self.data.collection.find((node) => node.Id === depend);
+          collectionDepends.push({
+            from: {
+              id: depend,
+              lvl: fromNode.lvl,
+              group: fromNode.group,
+            },
+            to: {
+              id: item.Id,
+              lvl: item.lvl,
+              group: item.group,
+            },
+          });
+        }
+      });
+    });
+    self.data.depends = collectionDepends;
+    // end collection depends;
+
+    let depends = d3.line()
+      .curve(d3.curveCatmullRom.alpha(0.5));
 
     self.items.depends =
       self.svg.append("g")
       .attr("class", "group-depends");
 
-    // self.items.depends.selectAll(".node-depend")
-    //   .append("polyline")
-    //   .attr("depend")
-    //   .call(depends);
+    let points = (line) =>
+      (self.scale.x(line.from.group) + self.model.get("padding").left + 50) + "," + (self.scale.y(line.from.lvl) + 50) +
+      " " +
+      (self.scale.x(line.to.group) + self.model.get("padding").left + 50) + "," + self.scale.y(line.to.lvl);
+
+    self.items.depends.selectAll(".polyline")
+      .data(collectionDepends)
+      .enter()
+      .append("polyline")
+      // .apend("path")
+      .attr("class", "depend")
+      .attr("from-to", (line) => line.from.id + "-" + line.to.id)
+      .attr("points", points)
+      .call(depends);
 
     return self;
   }

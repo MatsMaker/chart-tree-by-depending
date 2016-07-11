@@ -15,3 +15,8 @@
 .paper #group-background-8 {
   fill: rgb(225, 235, 243);
 }
+.depend {
+  fill: none;
+  stroke: black;
+  stroke-width: 1;
+}

@@ -53,6 +53,7 @@ class CollectionData {
     iteration();
     self.collection.sort((itemA, itemB) => itemA.lvl - itemB.lvl);
 
+    // set colum broup
     self.collection.forEach((item, index, arrItem) => {
       if (arrItem[index - 1] &&
         arrItem[index - 1].lvl === item.lvl) {

@@ -12,8 +12,6 @@ class ModelItem {
       data.DependentOnWorksheetId2,
       data.DependentOnWorksheetId,
     ];
-    this.x = 0;
-    this.y = 0;
     this.width = 100;
     this.height = 50;
     this.Status = data.Status;
