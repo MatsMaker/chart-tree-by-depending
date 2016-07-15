@@ -8,7 +8,7 @@ paper
   .then(() => {
     paper.render()
       .groupNodes()
+      .contentOfNode()
       .depends()
       .axisRight();
-
   });

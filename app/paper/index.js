@@ -1,9 +1,10 @@
 let d3 = require("d3");
 import _ from "lodash";
 import Model from "./Model.js";
-import Scale from "./Scale.js";
+import Grid from "./Grid.js";
 
 const Paper = class {
+
   render(select) {
     let self = this;
     const selector = select || this.selectorDefault;
@@ -22,13 +23,12 @@ const Paper = class {
     });
     // end set limits
 
-    this.scale = new Scale(
-      this.model.get("width"),
-      this.model.get("height"), {
-        x: self.data.maxClX,
-        y: self.data.maxLvl,
-      }
-    );
+    this.grid = new Grid({
+      numberColumns: self.data.maxClX,
+      numberLvls: self.data.maxLvl,
+      width: self.model.get("width"),
+      height: self.model.get("height"),
+    });
 
     this.svg = d3.select(selector)
       .attr("class", "paper")
@@ -42,8 +42,26 @@ const Paper = class {
       .append("g")
       .attr("class", "axis-right")
       .call(
-        d3.axisRight(this.scale.y)
+        d3.axisRight(this.grid.scale.y)
       );
+
+    return this;
+  }
+
+  contentOfNode() {
+    const self = this;
+    const spase = {
+      top: 5,
+      left: 5,
+      fontSize: 15,
+    };
+    // label
+    self.items.groupNodes.selectAll(".group-node")
+      .append("text")
+      .attr("class", "node-label")
+      .attr("x", (node) => self.grid.posColumOfNode(node.group) + spase.left)
+      .attr("y", (node) => self.grid.posLvlOfNode(node.lvl) + spase.top + spase.fontSize)
+      .html((node) => node.Id);
 
     return this;
   }
@@ -51,108 +69,44 @@ const Paper = class {
   groupNodes() {
     const self = this;
 
-    let posBoxX = (node, val = 0) => {
-      return this.scale.x(node.group) + val;
-    };
-    let posBoxY = (node, val = 0) => {
-      return this.scale.y(node.lvl) + val;
-    };
+    self.items.groupNodes =
+      self.svg.append("rect")
+      .attr("class", "background")
+      .attr("width", this.model.get("width"))
+      .attr("height", this.model.get("height"));
 
-    // Start render background
-    let bgArrayData = _.range(0, 9)
-      .map((i) => {
-        return {
-          id: i,
-          lvl: i,
-          contentLvls: 1,
-        };
-      });
-
-    self.items.background =
-      self.svg.append("g")
-      .attr("class", "group-background");
-
-    self.items.background.selectAll("rect")
-      .data(bgArrayData)
-      .enter()
-      .append("rect")
-      .attr("class", "lvl-background")
-      .attr("id", (node) => "group-background-" + node.id)
-      .attr("y", (node) => posBoxY(node))
-      .attr("x", 0)
-      .attr("width", self.model.get("width"))
-      .attr("height", (node) => {
-        let heightLvl = self.model.get("height") / (self.data.maxLvl + 1);
-        return heightLvl * node.contentLvls;
-      });
-
-    // End render backhraund
-
+    // Start nodes
     self.items.groupNodes =
       self.svg.append("g")
       .attr("class", "nodes");
 
-    self.items.groupNodes.selectAll("rect")
+    self.items.groupNodes
+      .selectAll("rect")
       .data(self.data.collection)
       .enter()
       .append("g")
       .attr("id", (node) => "group-node-" + node.Id)
       .attr("class", "group-node");
 
-    self.items.groupNodes.selectAll(".group-node")
+    // node
+    self.items.groupNodes
+      .selectAll(".group-node")
       .append("rect")
       .attr("class", "node")
       .attr("id", (node) => "node-" + node.Id)
-      .attr("x", (node) => posBoxX(node, self.model.get("padding").left))
-      .attr("y", (node) => posBoxY(node))
-      .attr("width", (node) => node.width)
-      .attr("height", (node) => node.height);
-
-    // label
-    self.items.groupNodes.selectAll(".group-node")
-      .append("text")
-      .attr("class", "node-label")
-      .attr("x", (node) => posBoxX(node, self.model.get("padding").left + 4))
-      .attr("y", (node) => posBoxY(node, 15))
-      .html((node) => node.Id);
+      .attr("x", (node) => self.grid.posColumOfNode(node.group))
+      .attr("y", (node) => self.grid.posLvlOfNode(node.lvl))
+      .attr("width", self.grid.widthColumnOfNode)
+      .attr("height", self.grid.heightOfNode);
+    // End nodes
 
     return this;
   }
 
   depends() {
-    let self = this;
-
-    // find collection depends
-    let collectionDepends = [];
-    self.data.collection.forEach((item) => {
-      item.Dependency.forEach((depend, index, arrDepend) => {
-        if (depend !== -1) {
-          let fromNode = self.data.collection.find((node) => node.Id === depend);
-          collectionDepends.push({
-            from: {
-              id: depend,
-              lvl: fromNode.lvl,
-              part: index,
-              numberDepends: arrDepend.length,
-              group: fromNode.group,
-              width: fromNode.width,
-              height: fromNode.height,
-            },
-            to: {
-              part: index,
-              id: item.Id,
-              lvl: item.lvl,
-              numberDepends: arrDepend.length,
-              group: item.group,
-              width: item.width,
-              height: item.height,
-            },
-          });
-        }
-      });
-    });
-    self.data.depends = collectionDepends;
-    // end collection depends;
+    const self = this;
+    self.calcDepends();
+    const collectionDepends = self.data.depends;
 
     let depends = d3.line()
       .curve(d3.curveCatmullRom.alpha(0.5));
@@ -162,41 +116,19 @@ const Paper = class {
       .attr("class", "group-depends");
 
     let points = (line) => {
-      const margin = 5;
-
-      const xStart = (self.scale.x(line.from.group) + self.model.get("padding").left + (line.from.width / (line.to.numberDepends + 1) * (line.to.numberDepends - line.from.part)));
-      const xEnd = (self.scale.x(line.to.group) + self.model.get("padding").left + (line.to.width / (line.to.numberDepends + 1) * (line.to.numberDepends - line.from.part)));
+      const grid = self.grid;
 
       const pStart = [
-        xStart,
-        (self.scale.y(line.from.lvl) + line.from.height),
-      ];
-      const p1 = [
-        xStart,
-        (self.scale.y(line.from.lvl) + line.from.height + margin),
-      ];
-
-      const p2 = [
-        xEnd,
-        (self.scale.y(line.to.lvl) - margin),
+        grid.posColumOfNode(line.from.group),
+        grid.posLvlOfNode(line.from.lvl) + grid.heightOfNode,
       ];
 
       const pEnd = [
-        xEnd,
-        self.scale.y(line.to.lvl),
+        grid.posColumOfNode(line.to.group),
+        grid.posLvlOfNode(line.to.lvl),
       ];
 
-      if (line.from.lvl + 1 === line.to.lvl) {
-        return [pStart, p1, p2, pEnd];
-      } else {
-        const lineRightOrLeft = (((line.to.numberDepends - line.to.part) >= (line.to.numberDepends / 2)) ? 1 : -1);
-        const move = line.to.width / 2 * lineRightOrLeft;
-        return [
-          pStart, p1, [p1[0] + move, p1[1] + margin],
-          [p2[0] + move, p2[1] - margin],
-          p2, pEnd,
-        ];
-      }
+      return [pStart, pEnd];
     };
 
     self.items.depends.selectAll(".polyline")
@@ -214,12 +146,42 @@ const Paper = class {
     return self;
   }
 
-
   constructor(DataCollection) {
     this.items = {};
     this.selectorDefault = "#paper";
     this.model = new Model();
     this.data = new DataCollection();
+  }
+
+  calcDepends() {
+    const self = this;
+    let collectionDepends = [];
+    self.data.collection.forEach((item) => {
+      item.Dependency.forEach((depend, index, arrDepend) => {
+        if (depend !== -1) {
+          let fromNode = self.data.collection.find((node) => node.Id === depend);
+          collectionDepends.push({
+            from: {
+              id: depend,
+              lvl: fromNode.lvl,
+              group: fromNode.group,
+              part: index,
+              numberDepends: arrDepend.length,
+            },
+            to: {
+              id: item.Id,
+              lvl: item.lvl,
+              group: item.group,
+              part: index,
+              numberDepends: arrDepend.length,
+            },
+          });
+        }
+      });
+    });
+    self.data.depends = collectionDepends;
+    // end collection depends;
+    return this;
   }
 
   getData() {
